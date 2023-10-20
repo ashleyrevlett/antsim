@@ -1,0 +1,23 @@
+{
+  "name": "mapgen_graphology",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "devDependencies": {
+    "vite": "^4.4.5"
+  },
+  "dependencies": {
+    "@pixi/math-extras": "^7.3.1",
+    "graphology": "^0.25.4",
+    "graphology-components": "^1.5.4",
+    "graphology-layout-force": "^0.2.4",
+    "graphology-layout-forceatlas2": "^0.10.1",
+    "graphology-layout-noverlap": "^0.4.2",
+    "pixi.js": "^7.3.1"
+  }
+}
