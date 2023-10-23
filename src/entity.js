@@ -1,4 +1,5 @@
-import { Sprite, Texture, Ticker } from 'pixi.js';
+import { Sprite, Texture, Ticker, Graphics} from 'pixi.js';
+
 import ant from '../assets/ant.png';
 import {bidirectional} from 'graphology-shortest-path';
 
@@ -9,8 +10,9 @@ export default class Entity extends Sprite {
     super(Texture.from(ant));
     this.graph = graph;
     this.speed = 1.75;
+    this.hasFood = false;
 
-    // add sprite to stage
+    // add ant sprite to stage
     this.anchor.set(.5)
     this.scale.set(.1)
     this.x = app.view.width / 2;
@@ -18,6 +20,15 @@ export default class Entity extends Sprite {
     const randomColor = colors[Math.floor(Math.random() * colors.length)]
     this.tint = randomColor;
     app.stage.addChild(this);
+
+    // add food sprite to stage
+    let foodSize = 100;
+    this.foodSprite = new Graphics();
+    this.foodSprite.beginFill(0x0000ff);
+    this.foodSprite.drawRect( -foodSize/2, -foodSize*2, foodSize, foodSize);
+    this.foodSprite.setTransform(0, 0);
+    this.foodSprite.zIndex = 2;
+    this.addChild(this.foodSprite);
 
     // set position and path
     this.setStartingPosition()
@@ -55,13 +66,23 @@ export default class Entity extends Sprite {
   update(dt) {
     if (this.targetPosition) {
       // when we (almost) reach the target...
-      if (Math.abs(this.x - this.targetPosition.x) <= this.speed * dt) {
+      if (Math.abs(this.x - this.targetPosition.x) <= this.speed * dt &&
+          Math.abs(this.y - this.targetPosition.y) <= this.speed * dt
+        ) {
         this.x = this.targetPosition.x;
         this.y = this.targetPosition.y;
 
         // if this is the end of the path, choose a new destination
         if (this.path.length == 0) {
-          this.setPath();
+          const nodeType = this.graph.getNodeAttributes(this.currentNode).nodeType;
+          if ( nodeType === 'foodSource') {
+            this.foodSprite.visible = true;
+            this.setPath(); // go to random food leaf
+          } else if (nodeType === 'foodStorage') {
+            this.foodSprite.visible = false;
+            this.graph.updateNodeAttribute(this.currentNode, 'foodCount', n => n + 1);
+            this.setPath('N0'); // back to food source
+          }
         } else {
           // otherwise, set destination to next node in path
           this.currentNode = this.path.shift();

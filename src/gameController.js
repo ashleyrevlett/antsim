@@ -3,7 +3,7 @@ import { Application } from 'pixi.js';
 import Map from './map.js'
 import Entity from './entity.js'
 
-const maxAnts = 2;
+const maxAnts = 10;
 
 export default class GameController {
   constructor() {
@@ -21,32 +21,45 @@ export default class GameController {
     globalThis.__PIXI_APP__ = this.app; // enable devtools
 
     const btn = document.getElementById('generateMap');
-    btn.addEventListener('click', () => this.startGame());
+    document.getElementById('generateMap').addEventListener(
+      'click', () => this.startGame()
+    );
 
-    const btn2 = document.getElementById('addAnt');
-    btn2.addEventListener('click', () => this.addAnt());
-
-    this.startGame();
+    document.getElementById('addAnt').addEventListener(
+      'click', () => this.addAnt()
+    );
 
     document.addEventListener('keyup', event => {
       if (event.code === 'Space') {
         this.addAnt();
       }
     })
+
+    this.timer = null;
+    this.ants = [];
+    this.startGame();
+
   }
 
   addAnt() {
-    console.log("addAnt")
     this.ants.push(new Entity(this.app, this.map.getGraph()));
   }
 
   startGame() {
+    // clear everything
+    if (this.map) this.map.destroy();
+    if (this.timer) clearInterval(this.timer);
     this.ants = [];
+    while(this.app.stage.children[0]) {
+      this.app.stage.removeChild(this.app.stage.children[0])
+    }
+
+    // generate new map and ants
     this.map = new Map(this.app);
-    let timer = setInterval(() => {
-      this.ants.push(new Entity(this.app, this.map.getGraph()));
+    this.timer = setInterval(() => {
+      this.addAnt();
       if (this.ants.length >= maxAnts) {
-        clearInterval(timer);
+        clearInterval(this.timer);
       }
     }, 1200);
   }

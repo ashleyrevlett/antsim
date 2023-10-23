@@ -1,6 +1,6 @@
 import { UndirectedGraph } from 'graphology';
 import noverlap from 'graphology-layout-noverlap';
-import { Graphics, Text } from 'pixi.js';
+import { Graphics, Text, Container, Ticker, DisplayObject } from 'pixi.js';
 import { randomDirection, randomNumber } from './utils';
 
 const minVariance = 60;
@@ -12,12 +12,17 @@ const maxNodes = 20;
 const nodeWidth = 40;
 const nodeHeight = 20;
 
-export default class Map {
+export default class Map extends DisplayObject {
   constructor(app) {
+    super();
+
     this.app = app;
     this.graph = new UndirectedGraph();
+    this.container = new Container();
+    this.app.stage.addChild(this.container);
     this.buildGraph();
-    this.drawGraph();
+
+    Ticker.shared.add(this.draw, this);
   }
 
   getGraph() {
@@ -61,13 +66,20 @@ export default class Map {
     }
     // color and size leaf nodes
     this.graph.forEachNode((node) => {
-      if (this.graph.degree(node) === 1 && node !== 'N0') {
-        this.graph.setNodeAttribute(node, 'color', 0x0000ff);
-      } else if (this.graph.degree(node) > 1) {
+      if (node === 'N0') {
+        // root node
+        this.graph.setNodeAttribute(node, 'nodeType', 'foodSource');
+      } else if (this.graph.degree(node) === 1 && node !== 'N0') {
         // leaves
+        this.graph.setNodeAttribute(node, 'color', 0x00ffff);
+        this.graph.setNodeAttribute(node, 'nodeType', 'foodStorage');
+        this.graph.setNodeAttribute(node, 'foodCount', 0);
+      } else if (this.graph.degree(node) > 1) {
+        // roads
         this.graph.setNodeAttribute(node, 'color', 0xff0000);
         this.graph.setNodeAttribute(node, 'h', 10);
         this.graph.setNodeAttribute(node, 'w', 10);
+        this.graph.setNodeAttribute(node, 'nodeType', 'road');
       }
     });
 
@@ -92,7 +104,15 @@ export default class Map {
     obj.beginFill(color);
     obj.drawRect( -w/2, -h/2, w, h);
     obj.setTransform(x, y);
-    this.app.stage.addChild(obj);
+    this.container.addChild(obj);
+
+    let foodSize = 10 * this.graph.getNodeAttribute(node, 'foodCount');
+    let foodSprite = new Graphics();
+    foodSprite.beginFill(0x0000ff);
+    foodSprite.drawRect( -foodSize/2, -foodSize/2, foodSize, foodSize);
+    foodSprite.setTransform(0, 0);
+    foodSprite.zIndex = 2;
+    obj.addChild(foodSprite);
 
     // const label = `${node} ${Math.round(x)}, ${Math.round(y)}`;
     const label = `${node}`;
@@ -103,7 +123,7 @@ export default class Map {
       align: 'center',
     });
     text.setTransform(x, y);
-    this.app.stage.addChild(text);
+    this.container.addChild(text);
   }
 
   drawEdge(vx, vy, wx, wy) {
@@ -112,13 +132,13 @@ export default class Map {
     edge.lineStyle(1, 0xff0000)
       .moveTo(vx, vy)
       .lineTo(wx, wy);
-    this.app.stage.addChild(edge);
+    this.container.addChild(edge);
   }
 
-  drawGraph() {
+  draw() {
     // clear stage
-    for (var i = this.app.stage.children.length - 1; i >= 0; i--) {
-      this.app.stage.removeChild(this.app.stage.children[i]);
+    for (var i = this.container.children.length - 1; i >= 0; i--) {
+      this.container.removeChild(this.container.children[i]);
     }
     // draw nodes
     this.graph.forEachNode((node, attributes) => {
