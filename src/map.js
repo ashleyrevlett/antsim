@@ -27,7 +27,7 @@ export default class Map {
 
   addNode(lastNode=null) {
     // recursively add nodes and edges to graph
-    let x = this.app.renderer.width / 2;
+    let x = this.app.renderer.screen.width / 2;
     let y = 0;
     if (lastNode) {
       const attr = this.graph.getNodeAttributes(lastNode);
@@ -35,8 +35,8 @@ export default class Map {
       y = attr.y + randomNumber(minVariance, maxVariance);
     }
     const node = this.graph.addNode('N' + this.graph.order, {
-      x: Math.min(Math.max(padding, x), this.app.renderer.width - padding),
-      y: Math.min(Math.max(0, y), this.app.renderer.height),
+      x: Math.min(Math.max(padding, x), this.app.renderer.screen.width - padding),
+      y: Math.min(Math.max(0, y), this.app.renderer.screen.height),
       w: nodeWidth,
       h: nodeHeight,
       color: 0xff0000,
@@ -94,7 +94,9 @@ export default class Map {
     obj.setTransform(x, y);
     this.app.stage.addChild(obj);
 
-    const text = new Text(`${node} ${Math.round(x)}, ${Math.round(y)}`, {
+    // const label = `${node} ${Math.round(x)}, ${Math.round(y)}`;
+    const label = `${node}`;
+    const text = new Text(label, {
       fontFamily: 'Arial',
       fontSize: 12,
       fill: 0x000,
