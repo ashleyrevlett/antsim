@@ -1,6 +1,8 @@
 import { UndirectedGraph } from 'graphology';
 import noverlap from 'graphology-layout-noverlap';
-import { Graphics, Text } from 'pixi.js';
+import { Graphics, Text, Sprite } from 'pixi.js';
+import Entity from './src/entity';
+import {bfsFromNode} from 'graphology-traversal/bfs';
 
 export function drawMap(app) {
   const minVariance = 60;
@@ -125,13 +127,33 @@ export function drawMap(app) {
     graph.forEachEdge((edge, attributes, source, target, sourceAttributes, targetAttributes) => {
       drawEdge(sourceAttributes.x, sourceAttributes.y, targetAttributes.x, targetAttributes.y);
     })
+
   }
+
 
   function init() {
     buildGraph();
     layoutGraph();
     drawGraph();
 
+    const entity = new Entity(app);
+    let attr = graph.getNodeAttributes('N0');
+    entity.setTarget({x: attr.x, y: attr.y});
+    let currentNode = 'N0';
+    entity.on("hitTarget", () => {
+      console.log("hit target");
+      bfsFromNode(graph, currentNode, (node, attr, depth) => {
+        currentNode = node;
+        console.log(node);
+        const pos = {x: attr.x, y: attr.y};
+        entity.setTarget(pos);
+        return depth >= 1;
+      });
+    });
+    // window.setTimeout(() => {
+    //   attr = graph.getNodeAttributes('N1');
+    //   entity.setTarget({x: attr.x, y: attr.y});
+    // }, 1000);
     // // Listen for frame updates
     // app.ticker.add(() => {
     //     // each frame we spin the bunny around a bit
