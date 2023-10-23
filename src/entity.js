@@ -45,7 +45,8 @@ export default class Entity extends Sprite {
     if (!target) {
       target = this.currentNode;
       while (target == this.currentNode) {
-        target = this.graph.nodes()[Math.floor(Math.random() * this.graph.order)];
+        let leaves = this.graph.filterNodes((n, a) => this.graph.degree(n) === 1);
+        target = leaves[Math.floor(Math.random() * leaves.length)];
       }
     }
     this.path = bidirectional(this.graph, this.currentNode, target);
@@ -54,7 +55,7 @@ export default class Entity extends Sprite {
   update(dt) {
     if (this.targetPosition) {
       // when we (almost) reach the target...
-      if (Math.abs(this.x - this.targetPosition.x) < 2) {
+      if (Math.abs(this.x - this.targetPosition.x) <= this.speed * dt) {
         this.x = this.targetPosition.x;
         this.y = this.targetPosition.y;
 
