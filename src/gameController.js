@@ -1,14 +1,15 @@
 import { Application } from 'pixi.js';
 
 import Map from './map.js'
-import Entity from './entity.js'
+import WorkerAnt from './workerAnt.js';
+import QueenAnt from './queenAnt.js';
 
 const maxAnts = 10;
 
 export default class GameController {
   constructor() {
     this.app = new Application({
-      background: '#fff',
+      background: 0x6F4E37,
       width: window.innerWidth,
       height: window.innerHeight,
       antialias: true,
@@ -37,12 +38,13 @@ export default class GameController {
 
     this.timer = null;
     this.ants = [];
+    this.queen = null;
     this.startGame();
 
   }
 
   addAnt() {
-    this.ants.push(new Entity(this.app, this.map.getGraph()));
+    this.ants.push(new WorkerAnt(this.app, this.map.getGraph()));
   }
 
   startGame() {
@@ -50,6 +52,7 @@ export default class GameController {
     if (this.map) this.map.destroy();
     if (this.timer) clearInterval(this.timer);
     this.ants = [];
+    this.queen = null;
     while(this.app.stage.children[0]) {
       this.app.stage.removeChild(this.app.stage.children[0])
     }
@@ -62,5 +65,6 @@ export default class GameController {
         clearInterval(this.timer);
       }
     }, 1200);
+    this.queen = new QueenAnt(this.app, this.map.getGraph());
   }
 }

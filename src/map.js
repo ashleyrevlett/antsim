@@ -1,6 +1,6 @@
 import { UndirectedGraph } from 'graphology';
 import noverlap from 'graphology-layout-noverlap';
-import { Graphics, Text, Container, Ticker, DisplayObject } from 'pixi.js';
+import { Graphics, Text, Container, Ticker, DisplayObject, LINE_CAP, LINE_JOIN } from 'pixi.js';
 import { randomDirection, randomNumber } from './utils';
 
 const minVariance = 60;
@@ -11,15 +11,23 @@ const maxMainNodes = 5;
 const maxNodes = 20;
 const nodeWidth = 40;
 const nodeHeight = 20;
+const edgeWidth = 25;
+const maxFoodCount = 20;
+const leafColor = 0x87CEFA;
+const roadColor = 0xF2D2BD;
+const foodColor = 0x32CD32;
 
 export default class Map extends DisplayObject {
   constructor(app) {
     super();
 
-    this.app = app;
+    this.width = app.renderer.screen.width;
+    this.height = app.renderer.screen.height;
     this.graph = new UndirectedGraph();
     this.container = new Container();
-    this.app.stage.addChild(this.container);
+    this.container.sortableChildren = true;
+    app.stage.addChild(this.container);
+
     this.buildGraph();
 
     Ticker.shared.add(this.draw, this);
@@ -32,7 +40,7 @@ export default class Map extends DisplayObject {
 
   addNode(lastNode=null) {
     // recursively add nodes and edges to graph
-    let x = this.app.renderer.screen.width / 2;
+    let x = this.width / 2;
     let y = 0;
     if (lastNode) {
       const attr = this.graph.getNodeAttributes(lastNode);
@@ -40,11 +48,11 @@ export default class Map extends DisplayObject {
       y = attr.y + randomNumber(minVariance, maxVariance);
     }
     const node = this.graph.addNode('N' + this.graph.order, {
-      x: Math.min(Math.max(padding, x), this.app.renderer.screen.width - padding),
-      y: Math.min(Math.max(0, y), this.app.renderer.screen.height),
+      x: Math.min(Math.max(padding, x), this.width - padding),
+      y: Math.min(Math.max(0, y), this.height),
       w: nodeWidth,
       h: nodeHeight,
-      color: 0xff0000,
+      color: leafColor,
     });
 
     if (lastNode) this.graph.addEdge(lastNode, node);
@@ -52,7 +60,6 @@ export default class Map extends DisplayObject {
     let shouldBranch = Math.random() < branchProbability;
     if (shouldBranch && this.graph.order < maxNodes)
       this.addNode(node);
-
     return node;
   }
 
@@ -71,14 +78,14 @@ export default class Map extends DisplayObject {
         this.graph.setNodeAttribute(node, 'nodeType', 'foodSource');
       } else if (this.graph.degree(node) === 1 && node !== 'N0') {
         // leaves
-        this.graph.setNodeAttribute(node, 'color', 0x00ffff);
+        this.graph.setNodeAttribute(node, 'color', leafColor);
         this.graph.setNodeAttribute(node, 'nodeType', 'foodStorage');
         this.graph.setNodeAttribute(node, 'foodCount', 0);
       } else if (this.graph.degree(node) > 1) {
         // roads
-        this.graph.setNodeAttribute(node, 'color', 0xff0000);
-        this.graph.setNodeAttribute(node, 'h', 10);
-        this.graph.setNodeAttribute(node, 'w', 10);
+        this.graph.setNodeAttribute(node, 'color', roadColor);
+        this.graph.setNodeAttribute(node, 'h', edgeWidth/2);
+        this.graph.setNodeAttribute(node, 'w', edgeWidth/2);
         this.graph.setNodeAttribute(node, 'nodeType', 'road');
       }
     });
@@ -104,34 +111,44 @@ export default class Map extends DisplayObject {
     obj.beginFill(color);
     obj.drawRect( -w/2, -h/2, w, h);
     obj.setTransform(x, y);
+    obj.zIndex = 2;
     this.container.addChild(obj);
 
-    let foodSize = 10 * this.graph.getNodeAttribute(node, 'foodCount');
+    let foodCount = Math.min(maxFoodCount, this.graph.getNodeAttribute(node, 'foodCount'));
+    let foodSize = 3 * foodCount;
     let foodSprite = new Graphics();
-    foodSprite.beginFill(0x0000ff);
+    foodSprite.beginFill(foodColor);
+    foodSprite.zIndex = 3;
     foodSprite.drawRect( -foodSize/2, -foodSize/2, foodSize, foodSize);
     foodSprite.setTransform(0, 0);
     foodSprite.zIndex = 2;
     obj.addChild(foodSprite);
 
     // const label = `${node} ${Math.round(x)}, ${Math.round(y)}`;
-    const label = `${node}`;
-    const text = new Text(label, {
-      fontFamily: 'Arial',
-      fontSize: 12,
-      fill: 0x000,
-      align: 'center',
-    });
-    text.setTransform(x, y);
-    this.container.addChild(text);
+    // const label = `${node}`;
+    // const label = `${node}: ${foodCount ? foodCount : ''}`;
+    // const text = new Text(label, {
+    //   fontFamily: 'Arial',
+    //   fontSize: 12,
+    //   fill: 0x000,
+    //   align: 'center',
+    // });
+    // text.setTransform(x, y);
+    // this.container.addChild(text);
   }
 
   drawEdge(vx, vy, wx, wy) {
     // draw edge on screen
     let edge = new Graphics();
-    edge.lineStyle(1, 0xff0000)
-      .moveTo(vx, vy)
+    edge.lineStyle({
+      cap:LINE_CAP.ROUND,
+      join:LINE_JOIN.ROUND,
+      width: edgeWidth,
+      color:roadColor
+    }).moveTo(vx, vy)
       .lineTo(wx, wy);
+    edge.lineS
+    edge.zIndex = -1;
     this.container.addChild(edge);
   }
 
