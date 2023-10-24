@@ -1,7 +1,7 @@
 import { UndirectedGraph } from 'graphology';
 import noverlap from 'graphology-layout-noverlap';
-import { Graphics, Text, Container, Ticker, DisplayObject, LINE_CAP, LINE_JOIN } from 'pixi.js';
-import { randomDirection, randomNumber } from './utils';
+import { Graphics, Container, Ticker, DisplayObject, LINE_CAP, LINE_JOIN, Application } from 'pixi.js';
+import { randomDirection, randomNumber } from '../utils';
 
 const minVariance = 60;
 const maxVariance = 120;
@@ -17,10 +17,13 @@ const leafColor = 0x87CEFA;
 const roadColor = 0xF2D2BD;
 const foodColor = 0x32CD32;
 
-export default class Map extends DisplayObject {
-  constructor(app) {
-    super();
+export default class Map {
+  width: number;
+  height: number;
+  graph: UndirectedGraph;
+  container: Container<DisplayObject>;
 
+  constructor(app : Application) {
     this.width = app.renderer.screen.width;
     this.height = app.renderer.screen.height;
     this.graph = new UndirectedGraph();
@@ -38,7 +41,7 @@ export default class Map extends DisplayObject {
     return this.graph;
   }
 
-  addNode(lastNode=null) {
+  addNode(lastNode : string | null = null) {
     // recursively add nodes and edges to graph
     let x = this.width / 2;
     let y = 0;
@@ -100,12 +103,12 @@ export default class Map extends DisplayObject {
 
     // update node positions to layout positions
     Object.keys(positions).forEach(key => {
-      this.graph.updateNodeAttribute(key, 'x', x => positions[key].x);
-      this.graph.updateNodeAttribute(key, 'y', y => positions[key].y);
+      this.graph.updateNodeAttribute(key, 'x', _x => positions[key].x);
+      this.graph.updateNodeAttribute(key, 'y', _y => positions[key].y);
     });
   }
 
-  drawNode(node, x, y, w, h, color) {
+  drawNode(node : string, x : number, y : number, w :number, h: number, color : number) {
     // draw node on screen
     let obj = new Graphics();
     obj.beginFill(color);
@@ -137,7 +140,7 @@ export default class Map extends DisplayObject {
     // this.container.addChild(text);
   }
 
-  drawEdge(vx, vy, wx, wy) {
+  drawEdge(vx : number, vy : number, wx : number, wy : number) {
     // draw edge on screen
     let edge = new Graphics();
     edge.lineStyle({
@@ -147,7 +150,6 @@ export default class Map extends DisplayObject {
       color:roadColor
     }).moveTo(vx, vy)
       .lineTo(wx, wy);
-    edge.lineS
     edge.zIndex = -1;
     this.container.addChild(edge);
   }
@@ -162,7 +164,7 @@ export default class Map extends DisplayObject {
       this.drawNode(node, attributes.x, attributes.y, attributes.w, attributes.h, attributes.color);
     });
     // draw edges
-    this.graph.forEachEdge((edge, attributes, source, target, sourceAttributes, targetAttributes) => {
+    this.graph.forEachEdge((_edge, _attributes, _source, _target, sourceAttributes, targetAttributes) => {
       this.drawEdge(sourceAttributes.x, sourceAttributes.y, targetAttributes.x, targetAttributes.y);
     })
   }

@@ -1,8 +1,15 @@
-import { Sprite, Texture, Ticker } from 'pixi.js';
+import { UndirectedGraph } from 'graphology';
+import { ShortestPath } from 'graphology-shortest-path/unweighted';
+import { Application, Sprite, Texture, Ticker, TextureSource } from 'pixi.js';
 
 
 export default class Entity extends Sprite {
-  constructor(texture, app, graph) {
+  graph: UndirectedGraph;
+  speed: number;
+  currentNode: string | undefined;
+  path: ShortestPath | null;
+
+  constructor(texture : TextureSource, app : Application, graph : UndirectedGraph) {
     super(Texture.from(texture));
     this.graph = graph;
     this.speed = 1.5;
@@ -26,8 +33,8 @@ export default class Entity extends Sprite {
     Ticker.shared.add(this.update, this);
   }
 
-  getRandomNode(nodeType) {
-    const nodes = this.graph.filterNodes((node, attr) => attr.nodeType === nodeType);
+  getRandomNode(nodeType : string) {
+    const nodes = this.graph.filterNodes((_node: string, attr) => attr.nodeType === nodeType);
     return nodes[Math.floor(Math.random() * nodes.length)];
   }
 
@@ -35,7 +42,7 @@ export default class Entity extends Sprite {
     return;
   }
 
-  update(dt) {
+  update(dt : number) {
       // if we've (almost) reached the target
       let attr = this.graph.getNodeAttributes(this.currentNode);
       if (Math.abs(this.x - attr.x) <= this.speed * dt &&

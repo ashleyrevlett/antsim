@@ -1,12 +1,18 @@
 import { Application } from 'pixi.js';
 
-import Map from './map.js'
+import Map from './map.ts';
 import WorkerAnt from './workerAnt.js';
 import QueenAnt from './queenAnt.js';
 
 const maxAnts = 10;
 
 export default class GameController {
+  app: Application;
+  timer: number | undefined;
+  ants: WorkerAnt[] = [];
+  queen!: QueenAnt | null;
+  map!: Map | null;
+
   constructor() {
     this.app = new Application({
       background: 0x6F4E37,
@@ -17,16 +23,15 @@ export default class GameController {
       resolution: window.devicePixelRatio || 1,
       autoDensity: true,
     });
-    document.body.appendChild(this.app.view);
+    document.body.appendChild(this.app.view as HTMLCanvasElement);
 
-    globalThis.__PIXI_APP__ = this.app; // enable devtools
+    // globalThis.__PIXI_APP__ = this.app; // enable devtools
 
-    const btn = document.getElementById('generateMap');
-    document.getElementById('generateMap').addEventListener(
+    document.getElementById('generateMap')?.addEventListener(
       'click', () => this.startGame()
     );
 
-    document.getElementById('addAnt').addEventListener(
+    document.getElementById('addAnt')?.addEventListener(
       'click', () => this.addAnt()
     );
 
@@ -36,23 +41,20 @@ export default class GameController {
       }
     })
 
-    this.timer = null;
-    this.ants = [];
-    this.queen = null;
     this.startGame();
 
   }
 
   addAnt() {
-    this.ants.push(new WorkerAnt(this.app, this.map.getGraph()));
+    this.ants.push(new WorkerAnt(this.app, this.map!.getGraph()));
   }
 
   startGame() {
     // clear everything
-    if (this.map) this.map.destroy();
+    // if (this.map) this.map.destroy();
     if (this.timer) clearInterval(this.timer);
     this.ants = [];
-    this.queen = null;
+    // this.queen = null;
     while(this.app.stage.children[0]) {
       this.app.stage.removeChild(this.app.stage.children[0])
     }
@@ -64,6 +66,7 @@ export default class GameController {
       if (this.ants.length >= maxAnts) {
         clearInterval(this.timer);
       }
+      // console.log("add ant");
     }, 1200);
     this.queen = new QueenAnt(this.app, this.map.getGraph());
   }
