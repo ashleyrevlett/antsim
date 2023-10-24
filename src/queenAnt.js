@@ -13,44 +13,28 @@ export default class QueenAnt extends Entity {
     this.scale.set(.1);
     this.speed = .5;
     this.zIndex = 1;
-
-    Ticker.shared.add(this.update, this);
   }
 
-  setPath(target=null) {
-    if (!target) {
-      target = this.currentNode;
-      while (target == this.currentNode) {
-        let leaves = this.graph.filterNodes((n, a) => this.graph.degree(n) === 1);
-        target = leaves[Math.floor(Math.random() * leaves.length)];
-      }
-    }
-    this.path = bidirectional(this.graph, this.currentNode, target);
-  }
-
-  updateTargetPath() {
+  updatePath() {
     // if this is the end of the path, choose a new destination
     if (this.path.length == 0) {
+      // if we are at the food source, go to a random storage node
       const nodeType = this.graph.getNodeAttributes(this.currentNode).nodeType;
       if ( nodeType === 'foodSource') {
-        this.setPath(); // go to random food leaf
+        const target = this.getRandomNode('foodStorage');
+        this.path = bidirectional(this.graph, this.currentNode, target);
       }
     } else {
       // otherwise, set destination to next node in path
       this.currentNode = this.path.shift();
-      this.setTargetPosition();
     }
   }
 
   update(dt) {
     super.update(dt);
-
     let foodCount = this.graph.getNodeAttributes(this.currentNode).foodCount;
     if (foodCount && foodCount > 0) {
       this.graph.updateNodeAttribute(this.currentNode, 'foodCount', n => Math.max(0, n - appetite * dt));
-      console.log("ate");
     }
-
   }
-
 }
