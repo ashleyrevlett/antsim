@@ -22,10 +22,14 @@ export default class GameController {
       resizeTo: window,
       resolution: window.devicePixelRatio || 1,
       autoDensity: true,
+      hello: true,
+      sharedTicker: true,
     });
     document.body.appendChild(this.app.view as HTMLCanvasElement);
+    this.app.ticker.maxFPS = 120;
 
-    // globalThis.__PIXI_APP__ = this.app; // enable devtools
+    // @ts-ignore
+    globalThis.__PIXI_APP__ = this.app; // enable devtools
 
     document.getElementById('generateMap')?.addEventListener(
       'click', () => this.startGame()
@@ -51,10 +55,9 @@ export default class GameController {
 
   startGame() {
     // clear everything
-    // if (this.map) this.map.destroy();
     if (this.timer) clearInterval(this.timer);
-    this.ants = [];
-    // this.queen = null;
+    // this.ants.forEach(ant => ant.destroy());
+    // this.queen?.destroy()
     while(this.app.stage.children[0]) {
       this.app.stage.removeChild(this.app.stage.children[0])
     }

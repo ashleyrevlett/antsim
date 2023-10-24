@@ -1,6 +1,6 @@
 import { UndirectedGraph } from 'graphology';
 import noverlap from 'graphology-layout-noverlap';
-import { Graphics, Container, Ticker, DisplayObject, LINE_CAP, LINE_JOIN, Application } from 'pixi.js';
+import { Graphics, Container, Ticker, Text, DisplayObject, LINE_CAP, LINE_JOIN, Application } from 'pixi.js';
 import { randomDirection, randomNumber } from '../utils';
 import { MAX_FOOD } from '../constants.ts';
 
@@ -22,6 +22,7 @@ export default class Map {
   height: number;
   graph: UndirectedGraph;
   container: Container<DisplayObject>;
+  foodContainer: Container<DisplayObject>;
 
   constructor(app : Application) {
     this.width = app.renderer.screen.width;
@@ -29,16 +30,26 @@ export default class Map {
     this.graph = new UndirectedGraph();
     this.container = new Container();
     this.container.sortableChildren = true;
+    this.foodContainer = new Container();
     app.stage.addChild(this.container);
+    app.stage.addChild(this.foodContainer);
 
     this.buildGraph();
+    this.draw();
 
-    Ticker.shared.add(this.draw, this);
+    Ticker.shared.add(this.drawFood, this);
   }
 
   getGraph() {
     // expose graph var
     return this.graph;
+  }
+
+  getDistance(node1 : string, node2 : string) {
+    // get distance between two nodes
+    let attr1 = this.graph.getNodeAttributes(node1);
+    let attr2 = this.graph.getNodeAttributes(node2);
+    return Math.sqrt(Math.pow(attr1.x - attr2.x, 2) + Math.pow(attr1.y - attr2.y, 2)).toFixed(2);
   }
 
   addNode(lastNode : string | null = null) {
@@ -58,7 +69,11 @@ export default class Map {
       color: leafColor,
     });
 
-    if (lastNode) this.graph.addEdge(lastNode, node);
+    if (lastNode) {
+      this.graph.addEdge(lastNode, node, {
+        weight: this.getDistance(lastNode, node)
+      })
+    };
 
     let shouldBranch = Math.random() < branchProbability;
     if (shouldBranch && this.graph.order < maxNodes)
@@ -108,7 +123,7 @@ export default class Map {
     });
   }
 
-  drawNode(node : string, x : number, y : number, w :number, h: number, color : number) {
+  drawNode(_node : string, x : number, y : number, w :number, h: number, color : number) {
     // draw node on screen
     let obj = new Graphics();
     obj.beginFill(color);
@@ -117,30 +132,20 @@ export default class Map {
     obj.zIndex = 2;
     this.container.addChild(obj);
 
-    let foodCount = Math.min(MAX_FOOD, this.graph.getNodeAttribute(node, 'foodCount'));
-    let foodSize = 3 * foodCount;
-    let foodSprite = new Graphics();
-    foodSprite.beginFill(foodColor);
-    foodSprite.zIndex = 3;
-    foodSprite.drawRect( -foodSize/2, -foodSize/2, foodSize, foodSize);
-    foodSprite.setTransform(0, 0);
-    foodSprite.zIndex = 2;
-    obj.addChild(foodSprite);
-
-    // const label = `${node} ${Math.round(x)}, ${Math.round(y)}`;
+    // const label = `${node} ${Math.round(x)}, ${Math.round(y) - ${foodCount ? foodCount : ''}}`;
     // const label = `${node}`;
-    // const label = `${node}: ${foodCount ? foodCount : ''}`;
     // const text = new Text(label, {
     //   fontFamily: 'Arial',
     //   fontSize: 12,
     //   fill: 0x000,
     //   align: 'center',
     // });
+    // text.zIndex = 4;
     // text.setTransform(x, y);
     // this.container.addChild(text);
   }
 
-  drawEdge(vx : number, vy : number, wx : number, wy : number) {
+  drawEdge(_attributes : any, vx : number, vy : number, wx : number, wy : number) {
     // draw edge on screen
     let edge = new Graphics();
     edge.lineStyle({
@@ -152,6 +157,36 @@ export default class Map {
       .lineTo(wx, wy);
     edge.zIndex = -1;
     this.container.addChild(edge);
+
+    // const weight = _attributes.weight;
+    // const label = `${weight}`;
+    // const text = new Text(label, {
+    //   fontFamily: 'Arial',
+    //   fontSize: 12,
+    //   fill: 0x000,
+    //   align: 'center',
+    // });
+    // text.zIndex = 3;
+    // text.setTransform(wx + 10, wy + 10);
+    // this.container.addChild(text);
+  }
+
+  drawFood() {
+    for (var i = this.foodContainer.children.length - 1; i >= 0; i--) {
+      this.foodContainer.removeChild(this.foodContainer.children[i]);
+    }
+
+    this.graph.forEachNode((_node, attributes) => {
+      let foodCount = Math.min(MAX_FOOD, parseFloat(attributes.foodCount));
+      let foodSize = 3 * foodCount;
+      let foodSprite = new Graphics();
+      foodSprite.beginFill(foodColor);
+      foodSprite.zIndex = 3;
+      foodSprite.drawRect( -foodSize/2, -foodSize/2, foodSize, foodSize);
+      foodSprite.setTransform(attributes.x, attributes.y);
+      foodSprite.zIndex = 2;
+      this.foodContainer.addChild(foodSprite);
+    });
   }
 
   draw() {
@@ -164,8 +199,8 @@ export default class Map {
       this.drawNode(node, attributes.x, attributes.y, attributes.w, attributes.h, attributes.color);
     });
     // draw edges
-    this.graph.forEachEdge((_edge, _attributes, _source, _target, sourceAttributes, targetAttributes) => {
-      this.drawEdge(sourceAttributes.x, sourceAttributes.y, targetAttributes.x, targetAttributes.y);
+    this.graph.forEachEdge((_edge, attributes, _source, _target, sourceAttributes, targetAttributes) => {
+      this.drawEdge(attributes, sourceAttributes.x, sourceAttributes.y, targetAttributes.x, targetAttributes.y);
     })
   }
 }

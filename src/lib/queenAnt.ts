@@ -1,5 +1,6 @@
 import { Application } from 'pixi.js';
-import {bidirectional} from 'graphology-shortest-path';
+import dijkstra from 'graphology-shortest-path/dijkstra';
+import {edgePathFromNodePath} from 'graphology-shortest-path/utils';
 
 import Entity from './entity';
 import antTexture from '../../assets/ant.png';
@@ -26,18 +27,23 @@ export default class QueenAnt extends Entity {
       const nodeType = this.graph.getNodeAttributes(this.currentNode).nodeType;
       if (nodeType === 'foodSource') {
         const target = this.getRandomNode('foodStorage');
-        this.path = bidirectional(this.graph, this.currentNode, target);
+        this.path = dijkstra.bidirectional(this.graph, this.currentNode, target);
       } else if (nodeType === 'foodStorage') {
-        // if there's not any food here and we're hungry, go to the closest leaf with the most food
-        // @TODO use weights for graph edges, and go to closest leaf with most food
+        // if there's not any food here and we're hungry, go to the closest leaf with available food
         if (this.graph.getNodeAttributes(this.currentNode).foodCount == 0 && this.hunger >= maxHunger / 2) {
-          let nodeWithMostFood = this.currentNode;
-          this.graph.mapNodes((node, attr) => {
-            if (attr.foodCount > this.graph.getNodeAttributes(nodeWithMostFood).foodCount) {
-              nodeWithMostFood = node;
+          let nodesWithFood = this.graph.filterNodes((_node: string, attr) => attr.nodeType === 'foodStorage' && attr.foodCount > 0);
+          let shortestPath: string[] = [];
+          let shortestPathCost: number | null = null;
+          nodesWithFood.forEach(node => {
+            let path = dijkstra.bidirectional(this.graph, this.currentNode, node);
+            let edgePath = edgePathFromNodePath(this.graph, path);
+            let edgeCost = edgePath.reduce((acc, edge) => acc + parseFloat(this.graph.getEdgeAttribute(edge, 'weight')), 0);
+            if (!shortestPathCost || edgeCost < shortestPathCost) {
+              shortestPath = path;
+              shortestPathCost = edgeCost;
             }
           });
-          this.path = bidirectional(this.graph, this.currentNode, nodeWithMostFood);
+          this.path = shortestPath;
         }
       }
     } else {
