@@ -21,14 +21,18 @@ body, html {
   scroll: none;
 }
 
-#generateMap {
+.buttons {
+  display: flex;
+  flex-direction: row;
+  gap: 10px;
   position: absolute;
-  top: 0;
-  left: 0;
+  top: 10px;
+  left: 10px;
 }
 
-#addAnt {
+.labels {
   position: absolute;
   top: 30px;
-  left: 0;
+  left: 10px;
+  font-size: 12px;
 }

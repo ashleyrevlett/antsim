@@ -1,9 +1,10 @@
 import { Application, Graphics } from 'pixi.js';
 import {bidirectional} from 'graphology-shortest-path';
+import { UndirectedGraph } from 'graphology';
 
 import Entity from './entity';
+import { MAX_FOOD } from '../constants.ts';
 import antTexture from '../../assets/ant.png';
-import { UndirectedGraph } from 'graphology';
 
 export default class WorkerAnt extends Entity {
   hasFood: boolean = false;
@@ -31,7 +32,9 @@ export default class WorkerAnt extends Entity {
       if ( nodeType === 'foodSource') {
         if (this.foodSprite)
           this.foodSprite.visible = true;
-        const target = this.getRandomNode('foodStorage');
+        // go to food storage node that's not full
+        const nodes = this.graph.filterNodes((_node: string, attr) => attr.nodeType === 'foodStorage' && attr.foodCount < MAX_FOOD);
+        const target = nodes[Math.floor(Math.random() * nodes.length)];
         this.path = bidirectional(this.graph, this.currentNode, target); // go back to food source
       } else if (nodeType === 'foodStorage') {
         this.foodSprite.visible = false;

@@ -5,32 +5,35 @@ import { Application, Sprite, Texture, Ticker, TextureSource } from 'pixi.js';
 
 export default class Entity extends Sprite {
   graph: UndirectedGraph;
-  speed: number;
-  currentNode: string | undefined;
-  path: ShortestPath | null;
+  speed: number = 1.5;
+  currentNode: string = 'N0';
+  path: ShortestPath | null = [];
 
   constructor(texture : TextureSource, app : Application, graph : UndirectedGraph) {
     super(Texture.from(texture));
     this.graph = graph;
-    this.speed = 1.5;
 
     // add sprite to stage
     this.anchor.set(.5)
     this.scale.set(.08)
+    this.zIndex = 1;
     app.stage.addChild(this);
 
     // start at root node
-    this.currentNode = 'N0';
     const attr = this.graph.getNodeAttributes(this.currentNode);
     this.x = attr.x;
     this.y = attr.y;
 
     // calculate path to next node
-    this.path = [];
     this.updatePath();
 
     // run update() on tick
     Ticker.shared.add(this.update, this);
+  }
+
+  distanceFromTarget() {
+    let attr = this.graph.getNodeAttributes(this.currentNode);
+    return Math.sqrt(Math.pow(attr.x - this.x, 2) + Math.pow(attr.y - this.y, 2));
   }
 
   getRandomNode(nodeType : string) {

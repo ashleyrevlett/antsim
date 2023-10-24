@@ -2,6 +2,7 @@ import { UndirectedGraph } from 'graphology';
 import noverlap from 'graphology-layout-noverlap';
 import { Graphics, Container, Ticker, DisplayObject, LINE_CAP, LINE_JOIN, Application } from 'pixi.js';
 import { randomDirection, randomNumber } from '../utils';
+import { MAX_FOOD } from '../constants.ts';
 
 const minVariance = 60;
 const maxVariance = 120;
@@ -12,7 +13,6 @@ const maxNodes = 20;
 const nodeWidth = 40;
 const nodeHeight = 20;
 const edgeWidth = 25;
-const maxFoodCount = 20;
 const leafColor = 0x87CEFA;
 const roadColor = 0xF2D2BD;
 const foodColor = 0x32CD32;
@@ -117,7 +117,7 @@ export default class Map {
     obj.zIndex = 2;
     this.container.addChild(obj);
 
-    let foodCount = Math.min(maxFoodCount, this.graph.getNodeAttribute(node, 'foodCount'));
+    let foodCount = Math.min(MAX_FOOD, this.graph.getNodeAttribute(node, 'foodCount'));
     let foodSize = 3 * foodCount;
     let foodSprite = new Graphics();
     foodSprite.beginFill(foodColor);
