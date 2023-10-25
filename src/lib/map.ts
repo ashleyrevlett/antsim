@@ -2,7 +2,7 @@ import { UndirectedGraph } from 'graphology';
 import noverlap from 'graphology-layout-noverlap';
 import { Point, Graphics, Container, Ticker, DisplayObject, Text, LINE_CAP, LINE_JOIN, Application } from 'pixi.js';
 import { segmentIntersection } from '@pixi/math-extras';
-import { randomDirection, randomNumber, distance, midpoint } from '../utils';
+import { randomDirection, randomNumber, distance, midpoint, segmentIntersectRectangle } from '../utils';
 import { MAX_FOOD, DEBUG } from '../constants.ts';
 
 const minVariance = 60;
@@ -153,6 +153,8 @@ export default class Map {
     });
 
     this.styleGraph();
+    this.resolveNodeCollisions();
+    this.styleGraph();
 
     this.draw();
   }
@@ -229,6 +231,39 @@ export default class Map {
     });
 
     return foundCollision;
+  }
+
+
+  resolveNodeCollisions() {
+    console.log("resolving node collisions");
+    // loop through leaf nodes, if any overlap with a line segment, remove the node
+    this.graph.forEachNode((node, nodeAttributes) => {
+      if (this.graph.degree(node) > 1 || node == 'N0') return;
+
+      // detect collision between node and all edges not connected to this node
+      const x = nodeAttributes.x;
+      const y = nodeAttributes.y;
+      const w = nodeAttributes.w;
+      const h = nodeAttributes.h;
+
+      this.graph.forEachEdge((_edge, _attr, source, target) => {
+        if (source == node || target == node) return;
+
+        const p1 = {'x': this.graph.getNodeAttributes(source).x, 'y': this.graph.getNodeAttributes(source).y};
+        const p2 = {'x': this.graph.getNodeAttributes(target).x, 'y': this.graph.getNodeAttributes(target).y};
+        const intersection = segmentIntersectRectangle(p1, p2, x, y, w, h);
+        console.log(intersection);
+        if (intersection) {
+          console.log(`node intersection: ${node}, ${source}-${target}`);
+          try {
+            this.graph.dropNode(node);
+            console.log("dropped node:", node);
+          } catch {
+            console.log("node no longer exists:", node);
+          }
+        }
+      });
+    });
   }
 
   drawNode(node : string, x : number, y : number, w :number, h: number, color : number) {
