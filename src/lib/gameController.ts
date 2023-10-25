@@ -2,6 +2,7 @@ import { Application } from 'pixi.js';
 import Map from './map.ts';
 import WorkerAnt from './workerAnt.js';
 import QueenAnt from './queenAnt.js';
+import Food from './food.ts';
 
 const maxAnts = 10;
 
@@ -11,6 +12,7 @@ export default class GameController {
   ants: WorkerAnt[] = [];
   queen!: QueenAnt | null;
   map!: Map;
+  foodObjects: Food[] = [];
 
   constructor() {
     this.app = new Application({
@@ -38,7 +40,19 @@ export default class GameController {
         clearInterval(this.timer);
       }
     }, 1200);
-    this.queen = new QueenAnt(this.app, this.map.getGraph());
+
+    const graph = this.map.getGraph();
+    this.queen = new QueenAnt(this.app, graph);
+
+    // add food sprites to each storage node
+    graph.forEachNode((node, attributes) => {
+      if (attributes.nodeType === 'foodStorage') {
+        let f = new Food(node, graph);
+        this.foodObjects.push(f);
+        this.app.stage.addChild(f);
+      }
+    });
+
 
     // setup btn
     document.getElementById('addAnt')!.addEventListener('click', this.addAnt);
@@ -55,6 +69,8 @@ export default class GameController {
     this.queen = null;
     this.ants.forEach(ant => ant.destroy());
     this.ants = [];
+    this.foodObjects.forEach(food => food.destroy());
+    this.foodObjects = [];
     this.app!.destroy(true, { children: true, texture: true, baseTexture: true });
 
     document.getElementById('addAnt')!.removeEventListener('click', this.addAnt);

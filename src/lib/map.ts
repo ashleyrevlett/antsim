@@ -1,9 +1,9 @@
 import { UndirectedGraph } from 'graphology';
 import noverlap from 'graphology-layout-noverlap';
-import { Point, Graphics, Container, Ticker, DisplayObject, Text, LINE_CAP, LINE_JOIN, Application } from 'pixi.js';
+import { Point, Graphics, Container, DisplayObject, Text, LINE_CAP, LINE_JOIN, Application } from 'pixi.js';
 import { segmentIntersection } from '@pixi/math-extras';
 import { randomDirection, randomNumber, distance, midpoint, segmentIntersectRectangle } from '../utils';
-import { MAX_FOOD, DEBUG } from '../constants.ts';
+import { DEBUG } from '../constants.ts';
 
 const minVariance = 60;
 const maxVariance = 120;
@@ -17,7 +17,6 @@ const edgeWidth = 1;
 const nodeColor = 0xffc0cb;
 const leafColor = 0x87CEFA;
 const roadColor = 0xF2D2BD;
-const foodColor = 0x32CD32;
 
 interface Collision {
   intersection: Point;
@@ -30,7 +29,6 @@ export default class Map {
   height: number;
   graph: UndirectedGraph;
   container: Container<DisplayObject>;
-  foodContainer: Container<DisplayObject>;
 
   constructor(app : Application) {
     this.width = app.renderer.screen.width;
@@ -38,13 +36,9 @@ export default class Map {
     this.graph = new UndirectedGraph();
     this.container = new Container();
     this.container.sortableChildren = true;
-    this.foodContainer = new Container();
     app.stage.addChild(this.container);
-    app.stage.addChild(this.foodContainer);
 
     this.buildGraph();
-
-    Ticker.shared.add(this.drawFood, this);
   }
 
   getGraph() {
@@ -319,24 +313,6 @@ export default class Map {
     }
   }
 
-  drawFood() {
-    for (var i = this.foodContainer.children.length - 1; i >= 0; i--) {
-      this.foodContainer.removeChild(this.foodContainer.children[i]);
-    }
-
-    this.graph.forEachNode((_node, attributes) => {
-      let foodCount = Math.min(MAX_FOOD, parseFloat(attributes.foodCount));
-      let foodSize = 3 * foodCount;
-      let foodSprite = new Graphics();
-      foodSprite.beginFill(foodColor);
-      foodSprite.zIndex = 3;
-      foodSprite.drawRect( -foodSize/2, -foodSize/2, foodSize, foodSize);
-      foodSprite.setTransform(attributes.x, attributes.y);
-      foodSprite.zIndex = 2;
-      this.foodContainer.addChild(foodSprite);
-    });
-  }
-
   draw() {
     // clear stage
     for (var i = this.container.children.length - 1; i >= 0; i--) {
@@ -354,9 +330,7 @@ export default class Map {
   }
 
   destroy() {
-    Ticker.shared.remove(this.drawFood, this);
     this.container.destroy({children: true});
-    this.foodContainer.destroy({children: true});
     this.graph.clear();
   }
 }
