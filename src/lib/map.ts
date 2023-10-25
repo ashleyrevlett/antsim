@@ -1,6 +1,6 @@
 import { UndirectedGraph } from 'graphology';
 import noverlap from 'graphology-layout-noverlap';
-import { Graphics, Container, Ticker, Text, DisplayObject, LINE_CAP, LINE_JOIN, Application } from 'pixi.js';
+import { Graphics, Container, Ticker, DisplayObject, LINE_CAP, LINE_JOIN, Application } from 'pixi.js';
 import { randomDirection, randomNumber } from '../utils';
 import { MAX_FOOD } from '../constants.ts';
 
@@ -190,10 +190,6 @@ export default class Map {
   }
 
   draw() {
-    // clear stage
-    for (var i = this.container.children.length - 1; i >= 0; i--) {
-      this.container.removeChild(this.container.children[i]);
-    }
     // draw nodes
     this.graph.forEachNode((node, attributes) => {
       this.drawNode(node, attributes.x, attributes.y, attributes.w, attributes.h, attributes.color);
@@ -202,5 +198,12 @@ export default class Map {
     this.graph.forEachEdge((_edge, attributes, _source, _target, sourceAttributes, targetAttributes) => {
       this.drawEdge(attributes, sourceAttributes.x, sourceAttributes.y, targetAttributes.x, targetAttributes.y);
     })
+  }
+
+  destroy() {
+    Ticker.shared.remove(this.drawFood, this);
+    this.container.destroy({children: true});
+    this.foodContainer.destroy({children: true});
+    this.graph.clear();
   }
 }

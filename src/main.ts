@@ -1,7 +1,16 @@
 import './style.css'
 import GameController from './lib/gameController.js'
 
-new GameController();
+let game = new GameController();
+
+
+
+document.getElementById('generateMap')?.addEventListener(
+  'click', () => {
+    game.destroy();
+    game = new GameController();
+  }
+);
 
 
 const canvases = document.getElementsByTagName("canvas");

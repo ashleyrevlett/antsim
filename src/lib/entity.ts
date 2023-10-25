@@ -1,6 +1,6 @@
 import { UndirectedGraph } from 'graphology';
 import { ShortestPath } from 'graphology-shortest-path/unweighted';
-import { Application, Sprite, Texture, Ticker, TextureSource } from 'pixi.js';
+import { Application, Sprite, Texture, Ticker, TextureSource, IDestroyOptions } from 'pixi.js';
 
 
 export default class Entity extends Sprite {
@@ -71,6 +71,12 @@ export default class Entity extends Sprite {
       // move towards the target at speed
       this.x += toX * this.speed * dt;
       this.y += toY * this.speed * dt;
+  }
+
+  destroy(options?: boolean | IDestroyOptions | undefined): void {
+    console.log("destroying entity");
+    Ticker.shared.remove(this.update, this);
+    super.destroy(options);
   }
 
 }

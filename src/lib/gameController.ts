@@ -11,7 +11,7 @@ export default class GameController {
   timer: number | undefined;
   ants: WorkerAnt[] = [];
   queen!: QueenAnt | null;
-  map!: Map | null;
+  map!: Map;
 
   constructor() {
     this.app = new Application({
@@ -31,37 +31,6 @@ export default class GameController {
     // @ts-ignore
     globalThis.__PIXI_APP__ = this.app; // enable devtools
 
-    document.getElementById('generateMap')?.addEventListener(
-      'click', () => this.startGame()
-    );
-
-    document.getElementById('addAnt')?.addEventListener(
-      'click', () => this.addAnt()
-    );
-
-    document.addEventListener('keyup', event => {
-      if (event.code === 'Space') {
-        this.addAnt();
-      }
-    })
-
-    this.startGame();
-
-  }
-
-  addAnt() {
-    this.ants.push(new WorkerAnt(this.app, this.map!.getGraph()));
-  }
-
-  startGame() {
-    // clear everything
-    if (this.timer) clearInterval(this.timer);
-    // this.ants.forEach(ant => ant.destroy());
-    // this.queen?.destroy()
-    while(this.app.stage.children[0]) {
-      this.app.stage.removeChild(this.app.stage.children[0])
-    }
-
     // generate new map and ants
     this.map = new Map(this.app);
     this.timer = setInterval(() => {
@@ -69,8 +38,26 @@ export default class GameController {
       if (this.ants.length >= maxAnts) {
         clearInterval(this.timer);
       }
-      // console.log("add ant");
     }, 1200);
     this.queen = new QueenAnt(this.app, this.map.getGraph());
+
+    // setup btn
+    document.getElementById('addAnt')!.addEventListener('click', this.addAnt);
+  }
+
+  addAnt = () => {
+    this.ants.push(new WorkerAnt(this.app, this.map!.getGraph()));
+  }
+
+  destroy() {
+    if (this.timer) clearInterval(this.timer);
+    this.timer = undefined;
+    this.queen?.destroy();
+    this.queen = null;
+    this.ants.forEach(ant => ant.destroy());
+    this.ants = [];
+    this.app!.destroy(true, { children: true, texture: true, baseTexture: true });
+
+    document.getElementById('addAnt')!.removeEventListener('click', this.addAnt);
   }
 }
