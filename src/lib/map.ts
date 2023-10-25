@@ -1,8 +1,9 @@
 import { UndirectedGraph } from 'graphology';
 import noverlap from 'graphology-layout-noverlap';
-import { Graphics, Container, Ticker, DisplayObject, LINE_CAP, LINE_JOIN, Application } from 'pixi.js';
-import { randomDirection, randomNumber } from '../utils';
-import { MAX_FOOD } from '../constants.ts';
+import { Point, Graphics, Container, Ticker, DisplayObject, Text, LINE_CAP, LINE_JOIN, Application } from 'pixi.js';
+import { segmentIntersection } from '@pixi/math-extras';
+import { randomDirection, randomNumber, distance, midpoint } from '../utils';
+import { MAX_FOOD, DEBUG } from '../constants.ts';
 
 const minVariance = 60;
 const maxVariance = 120;
@@ -12,10 +13,17 @@ const maxMainNodes = 5;
 const maxNodes = 20;
 const nodeWidth = 40;
 const nodeHeight = 20;
-const edgeWidth = 25;
+const edgeWidth = 1;
+const nodeColor = 0xffc0cb;
 const leafColor = 0x87CEFA;
 const roadColor = 0xF2D2BD;
 const foodColor = 0x32CD32;
+
+interface Collision {
+  intersection: Point;
+  e1: string;
+  e2: string;
+}
 
 export default class Map {
   width: number;
@@ -35,7 +43,6 @@ export default class Map {
     app.stage.addChild(this.foodContainer);
 
     this.buildGraph();
-    this.draw();
 
     Ticker.shared.add(this.drawFood, this);
   }
@@ -43,13 +50,6 @@ export default class Map {
   getGraph() {
     // expose graph var
     return this.graph;
-  }
-
-  getDistance(node1 : string, node2 : string) {
-    // get distance between two nodes
-    let attr1 = this.graph.getNodeAttributes(node1);
-    let attr2 = this.graph.getNodeAttributes(node2);
-    return Math.sqrt(Math.pow(attr1.x - attr2.x, 2) + Math.pow(attr1.y - attr2.y, 2)).toFixed(2);
   }
 
   addNode(lastNode : string | null = null) {
@@ -70,9 +70,7 @@ export default class Map {
     });
 
     if (lastNode) {
-      this.graph.addEdge(lastNode, node, {
-        weight: this.getDistance(lastNode, node)
-      })
+      this.graph.addEdge(lastNode, node);
     };
 
     let shouldBranch = Math.random() < branchProbability;
@@ -81,33 +79,7 @@ export default class Map {
     return node;
   }
 
-  buildGraph() {
-    this.graph.clear();
-
-    // build node tree
-    let node = null;
-    for (let i=0; i<maxMainNodes; i++) {
-      node = this.addNode(node);
-    }
-    // color and size leaf nodes
-    this.graph.forEachNode((node) => {
-      if (node === 'N0') {
-        // root node
-        this.graph.setNodeAttribute(node, 'nodeType', 'foodSource');
-      } else if (this.graph.degree(node) === 1 && node !== 'N0') {
-        // leaves
-        this.graph.setNodeAttribute(node, 'color', leafColor);
-        this.graph.setNodeAttribute(node, 'nodeType', 'foodStorage');
-        this.graph.setNodeAttribute(node, 'foodCount', 0);
-      } else if (this.graph.degree(node) > 1) {
-        // roads
-        this.graph.setNodeAttribute(node, 'color', roadColor);
-        this.graph.setNodeAttribute(node, 'h', edgeWidth/2);
-        this.graph.setNodeAttribute(node, 'w', edgeWidth/2);
-        this.graph.setNodeAttribute(node, 'nodeType', 'road');
-      }
-    });
-
+  layoutGraph() {
     // layout node positions
     const positions = noverlap(this.graph, {
       maxIterations: 400,
@@ -123,7 +95,143 @@ export default class Map {
     });
   }
 
-  drawNode(_node : string, x : number, y : number, w :number, h: number, color : number) {
+  styleGraph() {
+    // color and size leaf nodes
+    this.graph.forEachNode((node) => {
+      if (node === 'N0') {
+        // root node
+        this.graph.setNodeAttribute(node, 'nodeType', 'foodSource');
+      } else if (this.graph.degree(node) === 1 && node !== 'N0') {
+        // leaves
+        this.graph.setNodeAttribute(node, 'color', leafColor);
+        this.graph.setNodeAttribute(node, 'nodeType', 'foodStorage');
+        this.graph.setNodeAttribute(node, 'foodCount', 0);
+      } else if (this.graph.degree(node) > 1) {
+        // roads
+        this.graph.setNodeAttribute(node, 'color', nodeColor);
+        this.graph.setNodeAttribute(node, 'h', nodeWidth / 3);
+        this.graph.setNodeAttribute(node, 'w', nodeWidth/ 3);
+        this.graph.setNodeAttribute(node, 'nodeType', 'road');
+      }
+    });
+  }
+
+  buildGraph() {
+    this.graph.clear();
+
+    // build node tree
+    let node = null;
+    for (let i=0; i<maxMainNodes; i++) {
+      node = this.addNode(node);
+    }
+
+    this.layoutGraph();
+
+    // replace overlapping lines with actual node intersection point
+    let collided = this.resolveCollisions();
+    const MAX_ITERATIONS = 5;
+    let iterations = 1;
+    while (collided && iterations < MAX_ITERATIONS) {
+      console.log(`running ${iterations}`);
+      this.layoutGraph();
+      collided = this.resolveCollisions();
+      iterations++;
+    }
+
+    if (iterations >= MAX_ITERATIONS) {
+      console.log("too many iterations, starting over");
+      this.buildGraph();
+      return;
+    }
+
+    // set weight for each edge
+    this.graph.forEachEdge((edge, _attributes, source, target) => {
+      const attr1 = this.graph.getNodeAttributes(source);
+      const attr2 = this.graph.getNodeAttributes(target);
+      const d = distance(attr1.x, attr1.y, attr2.x, attr2.y);
+      this.graph.setEdgeAttribute(edge, 'weight', d);
+    });
+
+    this.styleGraph();
+
+    this.draw();
+  }
+
+  resolveCollisions() : boolean {
+    // resolving a collision can create another collision, so we return whether we found a collision so we can loop this
+    let foundCollision = false;
+
+    let collisions : Collision[] = [];
+    this.graph.forEachEdge((e1, _attr1, source1, target1, sourceAttributes1, targetAttributes1) => {
+      this.graph.forEachEdge((e2, _attr2, source2, target2, sourceAttributes2, targetAttributes2) => {
+        if (e1 == e2) return;
+        if (source1 == source2 || source1 == target2 || target1 == source2 || target1 == target2) return;
+
+        const p1 = {'x': sourceAttributes1.x, 'y': sourceAttributes1.y};
+        const p2 = {'x': targetAttributes1.x, 'y': targetAttributes1.y};
+        const q1 = {'x': sourceAttributes2.x, 'y': sourceAttributes2.y};
+        const q2 = {'x': targetAttributes2.x, 'y': targetAttributes2.y};
+        const intersection = segmentIntersection(p1, p2, q1, q2);
+        if (intersection && !isNaN(intersection.x) && !isNaN(intersection.y)) {
+          console.log(`intersection: ${source1}-${target1}, ${source2}-${target2}`);
+          const collision = {
+            intersection: intersection,
+            e1: e1,
+            e2: e2,
+          }
+          collisions.push(collision);
+        }
+      });
+    });
+
+    let unique: Collision[] = [];
+    collisions.forEach((collision) => {
+      let matchingIntersection = unique.find(
+        (i) => (i.e1 == collision.e2 && i.e2 == collision.e1) || (i.e1 == collision.e1 && i.e2 == collision.e2)
+      );
+      if (!matchingIntersection)
+        unique.push(collision);
+    });
+    console.log("collisions: ", unique);
+
+    if (unique.length > 0) foundCollision = true;
+
+    unique.forEach((collision) => {
+      const affectedNodes: string[] = [];
+      try {
+        affectedNodes.push(this.graph.source(collision.e1));
+        affectedNodes.push(this.graph.target(collision.e1));
+        affectedNodes.push(this.graph.source(collision.e2));
+        affectedNodes.push(this.graph.target(collision.e2));
+      } catch {
+        console.log("error: ", collision);
+        return;
+      }
+
+      // add node at intersection point
+      const newNode = this.graph.addNode('N' + this.graph.order, {
+        x: collision.intersection.x,
+        y: collision.intersection.y,
+        w: edgeWidth * 10,
+        h: edgeWidth * 10,
+        color: 0x00ff00,
+        nodeType: 'road',
+      });
+
+      // remove existing edges
+      this.graph.dropEdge(collision.e1);
+      this.graph.dropEdge(collision.e2);
+
+      // connect new node to existing nodes
+      affectedNodes.forEach((node) => {
+        this.graph.addEdge(newNode, node);
+      });
+    });
+
+    return foundCollision;
+  }
+
+  drawNode(node : string, x : number, y : number, w :number, h: number, color : number) {
     // draw node on screen
     let obj = new Graphics();
     obj.beginFill(color);
@@ -132,20 +240,22 @@ export default class Map {
     obj.zIndex = 2;
     this.container.addChild(obj);
 
-    // const label = `${node} ${Math.round(x)}, ${Math.round(y) - ${foodCount ? foodCount : ''}}`;
-    // const label = `${node}`;
-    // const text = new Text(label, {
-    //   fontFamily: 'Arial',
-    //   fontSize: 12,
-    //   fill: 0x000,
-    //   align: 'center',
-    // });
-    // text.zIndex = 4;
-    // text.setTransform(x, y);
-    // this.container.addChild(text);
+    if (DEBUG) {
+      // const label = `${node} ${Math.round(x)}, ${Math.round(y)}`;
+      const label = `${node}`;
+      const text = new Text(label, {
+        fontFamily: 'Arial',
+        fontSize: 12,
+        fill: 0x000,
+        align: 'center',
+      });
+      text.zIndex = 4;
+      text.setTransform(x, y);
+      this.container.addChild(text);
+    }
   }
 
-  drawEdge(_attributes : any, vx : number, vy : number, wx : number, wy : number) {
+  drawEdge(_e:string, _attributes : any, vx : number, vy : number, wx : number, wy : number) {
     // draw edge on screen
     let edge = new Graphics();
     edge.lineStyle({
@@ -158,17 +268,20 @@ export default class Map {
     edge.zIndex = -1;
     this.container.addChild(edge);
 
-    // const weight = _attributes.weight;
-    // const label = `${weight}`;
-    // const text = new Text(label, {
-    //   fontFamily: 'Arial',
-    //   fontSize: 12,
-    //   fill: 0x000,
-    //   align: 'center',
-    // });
-    // text.zIndex = 3;
-    // text.setTransform(wx + 10, wy + 10);
-    // this.container.addChild(text);
+    if (DEBUG) {
+      const weight = _attributes.weight;
+      const label = `${weight}`;
+      const text = new Text(label, {
+        fontFamily: 'Arial',
+        fontSize: 9,
+        fill: 0x000,
+        align: 'center',
+      });
+      text.zIndex = 3;
+      let p = midpoint(vx, vy, wx, wy);
+      text.setTransform(p.x, p.y);
+      this.container.addChild(text);
+    }
   }
 
   drawFood() {
@@ -190,13 +303,18 @@ export default class Map {
   }
 
   draw() {
+    // clear stage
+    for (var i = this.container.children.length - 1; i >= 0; i--) {
+      this.container.removeChild(this.container.children[i]);
+    };
+
     // draw nodes
     this.graph.forEachNode((node, attributes) => {
       this.drawNode(node, attributes.x, attributes.y, attributes.w, attributes.h, attributes.color);
     });
     // draw edges
-    this.graph.forEachEdge((_edge, attributes, _source, _target, sourceAttributes, targetAttributes) => {
-      this.drawEdge(attributes, sourceAttributes.x, sourceAttributes.y, targetAttributes.x, targetAttributes.y);
+    this.graph.forEachEdge((edge, attributes, _source, _target, sourceAttributes, targetAttributes) => {
+      this.drawEdge(edge, attributes, sourceAttributes.x, sourceAttributes.y, targetAttributes.x, targetAttributes.y);
     })
   }
 

@@ -1,5 +1,4 @@
 import { Application } from 'pixi.js';
-
 import Map from './map.ts';
 import WorkerAnt from './workerAnt.js';
 import QueenAnt from './queenAnt.js';
@@ -15,7 +14,7 @@ export default class GameController {
 
   constructor() {
     this.app = new Application({
-      background: 0x6F4E37,
+      background: 0xffffff,
       width: window.innerWidth,
       height: window.innerHeight,
       antialias: true,

@@ -8,4 +8,15 @@ function randomDirection() {
   return 1;
 }
 
-export { randomNumber, randomDirection }
+function distance(x1: number, y1: number, x2: number, y2: number) {
+  return Math.sqrt(Math.pow(x1 - x2, 2) + Math.pow(y1 - y2, 2)).toFixed(2);
+}
+
+function midpoint(x1: number, y1: number, x2: number, y2: number) {
+  return {
+    x: (x1 + x2) / 2,
+    y: (y1 + y2) / 2,
+  }
+}
+
+export { randomNumber, randomDirection, distance, midpoint }
